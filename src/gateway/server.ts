@@ -14,7 +14,7 @@ import { ReplayCache, fingerprint } from './replayCache';
 import { IpLimiter } from './ipLimiter';
 
 // 'token' = Privacy Pass mode (default). 'ip-limit' = baseline for the shared-proxy test.
-const MODE = process.env.GATEWAY_MODE ?? 'token';
+let MODE = process.env.GATEWAY_MODE ?? 'token';
 const mode = publicVerif.BlindRSAMode.PSS;
 
 async function loadIssuerKey(): Promise<Uint8Array> {
@@ -34,8 +34,9 @@ async function loadIssuerKey(): Promise<Uint8Array> {
 const issuerKeyBytes = await loadIssuerKey();
 const issuerKey = await importIssuerKey(issuerKeyBytes);
 const origin = new publicVerif.Origin(mode, [ORIGIN_NAME]);
-const cache = new ReplayCache();
-const limiter = new IpLimiter(3, 60_000);
+let cache = new ReplayCache();
+let limiter = new IpLimiter(3, 60_000);
+const seenIps = new Set<string>();
 
 function sha256(bytes: Uint8Array): Uint8Array {
   return new Uint8Array(createHash('sha256').update(bytes).digest());
@@ -52,9 +53,29 @@ async function forward(path: string, res: express.Response) {
 
 const app = express();
 
+// Lab-only control endpoints used by ReplayLab (reached directly, not through the proxy).
+app.post('/__lab/mode/:m', (req, res) => {
+  const m = req.params.m;
+  if (m !== 'token' && m !== 'ip-limit') {
+    res.status(400).json({ error: 'BAD_MODE' });
+    return;
+  }
+  MODE = m;
+  cache = new ReplayCache();
+  limiter = new IpLimiter(3, 60_000);
+  seenIps.clear();
+  console.log(`--- lab: switched to ${MODE} mode, state reset ---`);
+  res.json({ mode: MODE });
+});
+
+app.get('/__lab/stats', (_req, res) => {
+  res.json({ mode: MODE, distinctSourceIps: [...seenIps] });
+});
+
 app.use(async (req, res) => {
   const ip = req.socket.remoteAddress ?? 'unknown';
   const clientId = req.header('x-client-id') ?? '-';
+  seenIps.add(ip);
 
   if (MODE === 'ip-limit') {
     const allowed = limiter.allow(ip);
@@ -112,4 +133,4 @@ app.use(async (req, res) => {
   await forward(req.originalUrl, res);
 });
 
-app.listen(PORTS.gateway, () => console.log(`gateway (${MODE} mode) listening on ${PORTS.gateway}`));
+app.listen(PORTS.gateway, '127.0.0.1', () => console.log(`gateway (${MODE} mode) listening on ${PORTS.gateway}`));
