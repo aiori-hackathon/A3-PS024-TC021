@@ -1,0 +1,32 @@
+{
+  "name": "privacypass-lab",
+  "version": "1.0.0",
+  "description": "Include your code files in the src folder to demonstrate your implementation.",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "issuer": "tsx issuer/server.ts",
+    "gateway": "tsx gateway/server.ts",
+    "origin": "tsx origin/server.ts",
+    "proxy": "tsx proxy/proxy.ts",
+    "replaylab": "tsx replaylab/run.ts",
+    "latency": "tsx replaylab/latency.ts",
+    "all": "run-p issuer gateway origin proxy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@cloudflare/privacypass-ts": "0.9.0",
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "npm-run-all2": "^8.0.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
