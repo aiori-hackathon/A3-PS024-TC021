@@ -34,7 +34,7 @@ Flow: the client asks the gateway for a resource and receives a 401 challenge; i
 
 ### Requirements
 
-Node.js 20 or newer and Git. Works on Windows and macOS.
+Node.js 20 or newer and Git.
 
 ### Setup and run
 
