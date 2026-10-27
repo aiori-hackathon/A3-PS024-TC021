@@ -41,3 +41,11 @@ Components: client, issuer, gateway, origin (all run locally in the lab), plus a
 - The issuer key is regenerated on every issuer start, so tokens from an earlier run stop working. This is acceptable for a lab.
 - Requests carry an X-Client-Id label so test output can be attributed to clients. The gateway logs it but never uses it for decisions; it exists only for the test and must not exist in a real deployment, because it would defeat unlinkability.
 - Latency was measured on localhost on one machine, so real network delay is not included.
+
+
+## Key isolation
+
+- The issuer signing key pair is generated inside the issuer process, is never written to disk, and is never shared with the gateway or origin. The gateway holds only the issuer public key.
+- The origin has its own separate secret (keys/origin.secret, ignored by Git). The gateway sends it when forwarding a valid request, and the origin answers 403 to any request without it, so the origin cannot be reached by bypassing the gateway.
+- The two keys are independent: compromising the origin secret does not allow forging tokens, and the issuer key is not needed by the origin.
+- Checked by calling the origin directly on port 3003 without the secret (403), while valid tokens through the gateway still return 200.

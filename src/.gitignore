@@ -3,3 +3,5 @@ keys/*.pem
 keys/*.json
 .env
 dist/
+
+keys/*.secret

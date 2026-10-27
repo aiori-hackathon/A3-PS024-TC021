@@ -1,5 +1,6 @@
 import express from 'express';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import {
   publicVerif,
   AuthorizationHeader,
@@ -42,9 +43,12 @@ function sha256(bytes: Uint8Array): Uint8Array {
   return new Uint8Array(createHash('sha256').update(bytes).digest());
 }
 
+// Origin secret: lets the origin tell gateway-forwarded requests from direct ones.
+const originSecret = readFileSync(new URL('../keys/origin.secret', import.meta.url), 'utf8').trim();
+
 async function forward(path: string, res: express.Response) {
   try {
-    const up = await fetch(`http://127.0.0.1:${PORTS.origin}${path}`);
+    const up = await fetch(`http://127.0.0.1:${PORTS.origin}${path}`, { headers: { "x-origin-secret": originSecret } });
     res.status(up.status).send(await up.text());
   } catch {
     res.status(502).json({ error: 'ORIGIN_UNREACHABLE' });

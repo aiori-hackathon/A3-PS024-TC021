@@ -25,7 +25,7 @@ A lab implementation of the IETF Privacy Pass architecture (RFC 9576, 9577, 9578
 |---|---|---|---|
 | Issuer | src/issuer | 3001 | Signs blinded token requests; private key lives only in process memory |
 | Gateway | src/gateway | 3002 | Sends the challenge; checks signature, then context, then replay cache; forwards valid requests |
-| Origin | src/origin | 3003 | The protected service (reachable only through the gateway) |
+| Origin | src/origin | 3003 | The protected service. Accepts only requests carrying its own origin secret (separate from the issuer key); direct requests get 403 |
 | Shared proxy | src/proxy | 3004 | Test only: makes all clients appear from one source address |
 | Client | src/client | - | Gets the challenge, blinds, requests a token, unblinds, redeems |
 | ReplayLab | src/replaylab | - | Runs all test scenarios and measurements |
