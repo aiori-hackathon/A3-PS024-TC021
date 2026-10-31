@@ -81,3 +81,15 @@ Numbers vary slightly between runs. Details are in docs/test-results.md, docs/sh
 - The lab issuer signs any well-formed token request. Eligibility checking (attestation) is out of scope for this prototype.
 - The replay cache is in memory (5 minute TTL) and the issuer key is regenerated on every start.
 - The X-Client-Id header is a test label only; the gateway never uses it for decisions.
+
+
+### Lab dashboard
+
+A small web dashboard runs the same checks with one click and shows live results.
+
+~~~
+npm run all     # terminal 1: start the services
+npm run lab     # terminal 2: start the dashboard
+~~~
+
+Then open http://127.0.0.1:3005. Pages: Overview, Token scenarios, Shared proxy, Latency and Privacy view. The dashboard has 8 token scenarios: the seven from ReplayLab plus a direct request to the origin, which must return 403. Its latency page is a quick 30-run sample with a per-run chart; the full 100-run results are in docs/latency-results.md.
