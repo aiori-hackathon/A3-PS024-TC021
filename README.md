@@ -93,3 +93,8 @@ npm run lab     # terminal 2: start the dashboard
 ~~~
 
 Then open http://127.0.0.1:3005. Pages: Overview, Token scenarios, Shared proxy, Latency and Privacy view. The dashboard has 8 token scenarios: the seven from ReplayLab plus a direct request to the origin, which must return 403. Its latency page is a quick 30-run sample with a per-run chart; the full 100-run results are in docs/latency-results.md.
+
+
+### Working demo
+
+Recorded demo of the lab dashboard and the end-to-end token flow (about 2 min): https://youtu.be/PNcjBAttAs8
