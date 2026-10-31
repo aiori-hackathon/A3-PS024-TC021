@@ -1,0 +1,158 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Pass ReplayLab</title>
+<style>
+:root{--bg:#0b0f17;--panel:#121826;--p2:#182033;--line:#243047;--ink:#e6eaf2;--mute:#8d9ab3;--acc:#60a5fa;--ok:#34d399;--bad:#f87171;--warn:#fbbf24}
+*{box-sizing:border-box}
+body{margin:0;display:flex;min-height:100vh;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",sans-serif}
+nav{width:220px;flex:none;background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh}
+nav h1{font-size:17px;margin:0 8px 2px}
+nav small{display:block;color:var(--mute);margin:0 8px 18px;font-size:12px}
+nav a{display:block;padding:9px 12px;border-radius:8px;color:var(--mute);text-decoration:none;margin-bottom:4px}
+nav a:hover{background:var(--p2);color:var(--ink)}
+nav a.on{background:#1e3a8a55;color:#fff;box-shadow:inset 3px 0 0 var(--acc)}
+main{flex:1;padding:26px 30px 60px;max-width:1120px}
+h2{margin:0 0 4px;font-size:22px}
+h3{margin:0 0 8px;font-size:15px}
+.sub,.mute{color:var(--mute)}
+.sub{margin:0 0 18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.grid .card{margin:0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+button{font:inherit;padding:8px 16px;border-radius:8px;border:0;background:var(--acc);color:#07101f;font-weight:600;cursor:pointer}
+button.g{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button:disabled{opacity:.5;cursor:wait}
+a.link{color:var(--acc);text-decoration:none;font-size:13px}
+.b{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600}
+.b.ok{background:#064e3b;color:var(--ok)}
+.b.no{background:#4c1d1d;color:var(--bad)}
+.b.n{background:var(--line);color:var(--mute)}
+.big{font-size:30px;font-weight:700;line-height:1.1}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0}
+.chip{padding:9px 8px;border-radius:8px;text-align:center;font-size:12px;border:1px solid}
+.chip b{display:block;font-size:13px}
+.chip.ok{border-color:var(--ok);background:#064e3b55}
+.chip.no{border-color:var(--bad);background:#4c1d1d66}
+.seg{display:flex;gap:4px;margin:8px 0}
+.seg i{flex:1;height:10px;border-radius:4px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--mute)}
+.flow span{background:var(--p2);border:1px solid var(--line);border-radius:6px;padding:3px 10px}
+.bar{height:12px;border-radius:6px;background:var(--p2);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+.lr{display:grid;grid-template-columns:60px 1fr 90px;gap:10px;align-items:center;margin:9px 0;font-size:13px}
+.lr span:last-child{text-align:right}
+.st{margin:6px 0 0;padding-left:18px;color:var(--mute);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+ul.pl{margin:4px 0 10px;padding-left:18px;color:var(--mute);font-size:14px}
+@media(max-width:760px){body{flex-direction:column}nav{width:auto;height:auto;position:static;display:flex;flex-wrap:wrap;gap:4px}nav small{display:none}main{padding:18px}}
+</style>
+</head>
+<body>
+<nav>
+<h1>ReplayLab</h1><small>Privacy Pass · RFC 9578 Type 2</small>
+<a href="#overview" data-p="overview">Overview</a>
+<a href="#scenarios" data-p="scenarios">Token scenarios</a>
+<a href="#proxy" data-p="proxy">Shared proxy</a>
+<a href="#latency" data-p="latency">Latency</a>
+<a href="#privacy" data-p="privacy">Privacy view</a>
+</nav>
+<main id="main"></main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SC=[['none','No token'],['valid','Valid token'],['reused','Reused token'],['wrongctx','Wrong context'],['tampered','Tampered token'],['malformed','Malformed header'],['concurrent','Simultaneous redemption'],['direct','Direct origin access']];
+const S={scen:{},sp:null,lat:null,st:null,busy:{}};
+const f2=n=>n.toFixed(2);
+const dis=k=>S.busy[k]?'disabled':'';
+async function api(p,m){const r=await fetch(p,{method:m||'POST',cache:'no-store'});const j=await r.json();if(!r.ok)throw new Error(j.error||r.statusText);return j}
+async function loadStatus(){S.checking=1;render();try{S.st=await api('/api/status','GET');S.st.at=new Date().toLocaleTimeString()}catch(e){S.st={error:e.message,at:new Date().toLocaleTimeString()}}S.checking=0;render()}
+async function runOne(id){S.busy[id]=1;render();try{S.scen[id]=await api('/api/scenario/'+id)}catch(e){S.scen[id]={pass:false,actual:'error: '+e.message,expected:'',steps:[],ms:0}}delete S.busy[id];render()}
+async function runAll(){for(const [id] of SC)await runOne(id)}
+async function runShared(){S.busy.sp=1;render();try{S.sp=await api('/api/sharedproxy')}catch(e){S.sp={error:e.message}}delete S.busy.sp;render()}
+async function runLat(){S.busy.lat=1;render();try{S.lat=await api('/api/latency')}catch(e){S.lat={error:e.message}}delete S.busy.lat;render()}
+function resetAll(){S.scen={};S.sp=null;S.lat=null;S.busy={};render();loadStatus()}
+async function runEverything(){await runAll();await runShared();await runLat()}
+
+function donut(p,t){const c=2*Math.PI*40,f=t?c*p/t:0,col=t&&p===t?'#34d399':'#fbbf24';
+return `<svg width="110" height="110" viewBox="0 0 110 110"><circle cx="55" cy="55" r="40" fill="none" stroke="#243047" stroke-width="12"/><circle cx="55" cy="55" r="40" fill="none" stroke="${col}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${f} ${c}" transform="rotate(-90 55 55)"/><text x="55" y="61" text-anchor="middle" fill="#e6eaf2" font-size="20" font-weight="700">${p}/${t}</text></svg>`}
+
+function arch(){const box=(x,y,w,h,t,s)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" fill="#182033" stroke="#243047"/><text x="${x+w/2}" y="${y+h/2-2}" text-anchor="middle" fill="#e6eaf2" font-size="14" font-weight="600">${t}</text><text x="${x+w/2}" y="${y+h/2+15}" text-anchor="middle" fill="#8d9ab3" font-size="11">${s}</text>`;
+const tx=(x,y,t)=>`<text x="${x}" y="${y}" fill="#8d9ab3" font-size="11">${t}</text>`;
+return `<svg viewBox="0 0 760 250" width="100%"><defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#60a5fa"/></marker></defs>
+${box(20,100,120,56,'Client','blind, unblind, redeem')}${box(320,100,130,56,'Gateway','verify + replay cache')}${box(620,100,120,56,'Origin','protected service')}${box(170,8,130,50,'Issuer','blind signatures')}${box(320,190,130,44,'Replay cache','fingerprints + TTL')}
+<g stroke="#60a5fa" stroke-width="1.6" fill="none"><path d="M140 118H320" marker-end="url(#a)"/><path d="M320 140H140" marker-end="url(#a)" stroke-dasharray="4 3"/><path d="M450 128H620" marker-end="url(#a)"/><path d="M80 100V33H170" marker-start="url(#a)" marker-end="url(#a)"/><path d="M385 100V33H300" marker-end="url(#a)" stroke-dasharray="4 3"/><path d="M385 156V190" marker-start="url(#a)" marker-end="url(#a)"/></g>
+${tx(160,112,'request / redeem token')}${tx(172,156,'401 challenge')}${tx(470,120,'forward + origin secret')}${tx(90,75,'blind request / signed token')}${tx(394,70,'issuer public key')}${tx(394,176,'seen before?')}${tx(620,176,'direct access: 403')}</svg>`}
+
+function pOverview(){
+const d=Object.values(S.scen),p=d.filter(x=>x.pass).length;
+const st=S.st&&S.st.services?S.st.services.map(s=>`<span class="b ${s.ok?'ok':'no'}">${s.name} ${s.ok?'up':'down'}</span>`).join(' ')+` <span class="mute">gateway mode: ${esc(S.st.mode)} - updated ${S.st.at||''}</span>`:(S.st&&S.st.error?`<span class="b no">status error: ${esc(S.st.error)}</span>`:'<span class="mute">checking services...</span>');
+let sp='<div class="mute">Not run yet</div>';
+if(S.sp&&!S.sp.error){const bB=S.sp.runB.filter(x=>!x.outcome.startsWith('ACCEPTED')).length;sp=`<div class="big bad">${S.sp.blockedA} of ${S.sp.total}</div><div class="mute">blocked by the IP limit</div><div class="big ok" style="margin-top:8px">${bB} of ${S.sp.total}</div><div class="mute">blocked with tokens</div>`}
+const lt=S.lat&&!S.lat.error?`<div class="big warn">${f2(S.lat.issuance.mean)} ms</div><div class="mute">issuance (mean)</div><div class="big ok" style="margin-top:8px">${f2(S.lat.redemption.mean)} ms</div><div class="mute">redemption (mean)</div>`:'<div class="mute">Not run yet</div>';
+return `<h2>Overview</h2><p class="sub">Live status of the lab and the headline results.</p>
+<div class="card row"><div>${st}</div><div><button onclick="runEverything()" ${dis('sp')}>Run everything</button> <button class="g" onclick="loadStatus()" ${S.checking?'disabled':''}>${S.checking?'Checking...':'Refresh'}</button> <button class="g" onclick="resetAll()">Reset results</button></div></div>
+<div class="card"><h3>How a token travels</h3>${arch()}</div>
+<div class="grid">
+<div class="card"><h3>Token scenarios</h3><div class="row">${donut(p,SC.length)}<div class="mute">${d.length?p+' of '+SC.length+' passed':'Not run yet'}</div></div><a class="link" href="#scenarios">Open scenarios</a></div>
+<div class="card"><h3>Shared proxy</h3>${sp}<a class="link" href="#proxy">Open shared-proxy test</a></div>
+<div class="card"><h3>Latency</h3>${lt}<a class="link" href="#latency">Open latency</a></div>
+</div>`}
+
+function pScen(){
+const d=Object.values(S.scen),p=d.filter(x=>x.pass).length;
+const cards=SC.map(([id,t])=>{const r=S.scen[id];const bd=r?`<span class="b ${r.pass?'ok':'no'}">${r.pass?'PASS':'FAIL'}</span>`:'<span class="b n">not run</span>';
+return `<div class="card"><div class="row"><b>${t}</b>${bd}</div>${r?`<div class="mute" style="margin:8px 0">expected <b style="color:var(--ink)">${esc(r.expected)}</b><br>actual <b style="color:${r.pass?'var(--ok)':'var(--bad)'}">${esc(r.actual)}</b> · ${r.ms} ms</div><ul class="st">${r.steps.map(s=>'<li>'+esc(s)+'</li>').join('')}</ul>`:'<div class="mute" style="margin:8px 0">Press Run to execute this scenario against the live gateway.</div>'}<div style="margin-top:10px"><button class="g" onclick="runOne('${id}')" ${dis(id)}>${S.busy[id]?'Running...':'Run'}</button></div></div>`}).join('');
+return `<h2>Token scenarios</h2><p class="sub">Each scenario runs against the live gateway and compares expected with actual.</p>
+<div class="card row"><div class="row" style="justify-content:flex-start;gap:18px">${donut(p,SC.length)}<div><div class="big ${p===SC.length&&d.length?'ok':''}">${d.length?p+' of '+SC.length+' passed':'Ready'}</div><div class="mute">rejection reasons: INVALID, REPLAYED, WRONG_CONTEXT</div></div></div><button onclick="runAll()">Run all scenarios</button></div>
+<div class="grid">${cards}</div>`}
+
+function runCard(title,rows,ips,note,extra){const bl=rows.filter(x=>!x.outcome.startsWith('ALLOWED')&&!x.outcome.startsWith('ACCEPTED')).length;
+return `<div class="card"><h3>${title}</h3><div class="flow"><span>${rows.length} clients</span>→<span>shared proxy</span>→<span>gateway sees ${ips.length} source IP: ${esc(ips.join(', '))}</span></div>
+<div class="seg">${rows.map(x=>`<i style="background:${x.outcome.startsWith('ALLOWED')||x.outcome.startsWith('ACCEPTED')?'#34d399':'#f87171'}"></i>`).join('')}</div>
+<div class="chips">${rows.map(x=>{const ok=x.outcome.startsWith('ALLOWED')||x.outcome.startsWith('ACCEPTED');return `<div class="chip ${ok?'ok':'no'}"><b>${esc(x.client)}</b>${esc(x.outcome)}</div>`}).join('')}</div>
+<div class="big ${bl?'bad':'ok'}">${bl} of ${rows.length} legitimate clients blocked</div><div class="mute">${note}</div>${extra||''}</div>`}
+
+function pProxy(){
+let out='';
+if(S.sp&&S.sp.error)out=`<div class="card bad">Error: ${esc(S.sp.error)}</div>`;
+else if(S.sp)out=`<div class="grid">${runCard('Run A · IP rate limit (3 per minute per IP)',S.sp.runA,S.sp.ipsA,'The limiter cannot tell the clients apart, so it punishes innocent ones.')}${runCard('Run B · Privacy Pass tokens',S.sp.runB,S.sp.ipsB,'Each client redeems its own token. The decision is per token, not per IP.',`<div style="margin-top:10px">client-2 reuses its token: <span class="b no">${esc(S.sp.replay)}</span></div>`)}</div>`;
+return `<h2>Shared-proxy test</h2><p class="sub">Five clients go through one proxy, so the gateway sees a single source address.</p>
+<div class="card row"><div class="mute">Run A switches the gateway to IP limiting. Run B switches it back to token mode.</div><button onclick="runShared()" ${dis('sp')}>${S.busy.sp?'Running...':'Run shared-proxy test'}</button></div>${out}`}
+
+function bars(name,s){const m=s.max;const row=(l,v)=>`<div class="lr"><span class="mute">${l}</span><div class="bar"><i style="width:${Math.max(1.5,v/m*100)}%"></i></div><span>${f2(v)} ms</span></div>`;
+return `<div class="card"><h3>${name}</h3><div class="mute">${s.n} measured runs</div>${row('mean',s.mean)}${row('p50',s.p50)}${row('p95',s.p95)}${row('max',s.max)}</div>`}
+
+function chart(name,a,col){const W=360,H=150,p=28,m=Math.max(...a),n=a.length;const x=i=>p+i*(W-p-8)/(n-1||1),y=v=>H-p-(v/m)*(H-p-14);const pts=a.map((v,i)=>x(i).toFixed(1)+','+y(v).toFixed(1)).join(' ');const mean=a.reduce((s,v)=>s+v,0)/n;return `<div class="card"><h3>${name}</h3><svg viewBox="0 0 ${W} ${H}" width="100%"><line x1="${p}" y1="${H-p}" x2="${W-8}" y2="${H-p}" stroke="#243047"/><line x1="${p}" y1="${H-p}" x2="${p}" y2="10" stroke="#243047"/><line x1="${p}" y1="${y(mean)}" x2="${W-8}" y2="${y(mean)}" stroke="#8d9ab3" stroke-dasharray="4 3"/><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2"/><text x="${p}" y="${H-8}" fill="#8d9ab3" font-size="10">run 1</text><text x="${W-8}" y="${H-8}" text-anchor="end" fill="#8d9ab3" font-size="10">run ${n}</text><text x="${p+4}" y="20" fill="#8d9ab3" font-size="10">max ${f2(m)} ms</text><text x="${W-8}" y="${y(mean)-4}" text-anchor="end" fill="#8d9ab3" font-size="10">mean ${f2(mean)} ms</text></svg></div>`}
+function pLat(){
+let out='';
+if(S.lat&&S.lat.error)out=`<div class="card bad">Error: ${esc(S.lat.error)}</div>`;
+else if(S.lat){const x=(S.lat.issuance.mean/S.lat.redemption.mean).toFixed(0);out=`<div class="grid">${bars('Issuance (blind, issuer signs, unblind)',S.lat.issuance)}${bars('Redemption (gateway verifies + forwards)',S.lat.redemption)}</div>${S.lat.samples?`<div class="grid">${chart('Issuance, each run',S.lat.samples.issuance,'#fbbf24')}${chart('Redemption, each run',S.lat.samples.redemption,'#34d399')}</div>`:''}
+<div class="card row"><div><div class="big acc" style="color:var(--acc)">about ${x}x</div><div class="mute">redemption is faster than issuance (mean)</div></div><div class="mute">Redemption failures: ${S.lat.failures}. Each chart uses its own scale, so compare the numbers, not the bar lengths. Issuance is the costly step because it involves an RSA blind signature.</div></div>`}
+return `<h2>Latency</h2><p class="sub">Quick sample: 30 measured runs per operation on localhost (the saved 100-run results are in docs/latency-results.md).</p>
+<div class="card row"><div class="mute">Issuance is done once per token. Redemption happens on every protected request.</div><button onclick="runLat()" ${dis('lat')}>${S.busy.lat?'Measuring...':'Measure latency'}</button></div>${out}`}
+
+function pPriv(){
+const party=(n,sees,no)=>`<div class="card"><h3>${n}</h3><div class="mute">Sees</div><ul class="pl">${sees.map(x=>'<li>'+x+'</li>').join('')}</ul><div class="mute">Cannot learn</div><ul class="pl">${no.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`;
+const lk=(a,b,c)=>`<tr><td>${a}</td><td><span class="b ${b==='No'?'ok':'no'}">${b==='No'?'Not by token':b}</span></td><td class="mute">${c}</td></tr>`;
+return `<h2>Privacy view</h2><p class="sub">What each party sees and what stays unlinkable.</p>
+<div class="grid">${party('Issuer',['time of issuance','client IP address','the blinded request'],['the final token','where the token is later used'])}${party('Gateway',['the token (during the check)','requested path and source IP','accept or reject result'],['which issuance request produced the token','who the user is'])}${party('Origin',['only requests the gateway forwarded'],['tokens','rejected requests','the client source address'])}</div>
+<div class="card" style="margin-top:16px"><h3>Linkability</h3><table><tr><th>Link</th><th>Possible?</th><th>Why</th></tr>
+${lk('Issuance to redemption (issuer view)','No','The issuer saw only the blinded request, never the token')}${lk('Issuance to redemption (gateway view)','No','The gateway sees the token but no issuance event')}${lk('Redemption to redemption, same client','By timing or address','Tokens are unrelated, but source IP and timing are visible')}${lk('Client identity','Via IP','Privacy Pass does not hide IP addresses')}</table></div>
+<div class="card" style="border-color:#7c5e10"><b class="warn">Limit:</b> Privacy Pass does not hide transport-layer IP addresses. The gateway still sees the source address (the proxy address in the shared-proxy test). No guaranteed sliding-window anonymous quotas, and no new cryptography.</div>`}
+
+const PAGES={overview:pOverview,scenarios:pScen,proxy:pProxy,latency:pLat,privacy:pPriv};
+function render(){const k=(location.hash||'#overview').slice(1);const key=PAGES[k]?k:'overview';
+document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.p===key));
+$('#main').innerHTML=PAGES[key]()}
+addEventListener('hashchange',render);
+render();loadStatus();
+</script>
+</body>
+</html>

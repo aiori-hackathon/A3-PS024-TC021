@@ -11,9 +11,10 @@
     "proxy": "tsx proxy/proxy.ts",
     "replaylab": "tsx replaylab/run.ts",
     "latency": "tsx replaylab/latency.ts",
-    "all": "npm run keygen && run-p issuer gateway origin proxy",
+    "all": "npm run keygen && run-p issuer gateway origin proxy lab",
     "sharedproxy": "tsx replaylab/sharedProxy.ts",
-    "keygen": "tsx common/genSecret.ts"
+    "keygen": "tsx common/genSecret.ts",
+    "lab": "tsx lab/server.ts"
   },
   "keywords": [],
   "author": "",
